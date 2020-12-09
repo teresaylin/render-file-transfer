@@ -1,25 +1,22 @@
 const net = require("net");
 
 /**
- * Home server needs to be able to receive the following messages:
- *
- * From client:
- * - its own port
+ * Server that keeps track of Clients (names and ports)
  */
 
 class Server {
   server;
-  clients = new Set();
+  clients = {};
 
   constructor() {
     this.server = net.createServer((socket) => {
-      socket.pipe(process.stdout);
+      socket.on("data", (d) => {
+        const msg = d.toString();
 
-      socket.on("data", (msg) => {
-        // Get client port and send back list of available clients
-        const port = Number(msg.toString());
-        if (Number.isInteger(port)) {
-          this.clients.add(port);
+        if (msg.includes("New client: ")) {
+          const [port, name] = msg.split("New client: ")[1].split(", ");
+
+          this.clients[name] = Number(port);
           this.sendClients(port);
         }
       });
@@ -33,7 +30,9 @@ class Server {
   sendClients(toPort) {
     const clientSocket = net.connect(toPort);
     clientSocket.write(
-      `List of clients: ${Array.from(this.clients).toString()}`
+      `List of clients: ${Object.entries(this.clients).map(
+        ([name, port]) => `${name}: ${port}`
+      )}`
     );
   }
 }
