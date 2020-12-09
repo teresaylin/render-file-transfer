@@ -63,6 +63,7 @@ class Client {
           this.transferFile = undefined;
           this.transferSocket = undefined;
         } else {
+          // this must be a file transfer
           this.newFile && this.newFile.write(chunk);
         }
       });
@@ -84,6 +85,12 @@ class Client {
     });
   }
 
+  /**
+   * Prompts user to accept or reject the incoming file.
+   * @param {*} fileName Name of the file being transferred
+   * @param {*} senderName Name of the sender
+   * @param {*} senderPort Port of the sender
+   */
   async acceptOrRejectTransfer(fileName, senderName, senderPort) {
     const r1 = readline.createInterface({
       input: process.stdin,
@@ -102,7 +109,7 @@ class Client {
   }
 
   /**
-   *
+   * Initiates file transfer but does not actually transfer the file.
    * @param {*} receiver name of receiver
    * @param {*} fileName Must exist in same directory as sender
    */
@@ -120,6 +127,9 @@ class Client {
     this.transferFile = fileName;
   }
 
+  /**
+   * Sends the file upon receipt of user confirmation.
+   */
   sendFile() {
     if (!this.transferSocket || !this.transferFile) return;
 
