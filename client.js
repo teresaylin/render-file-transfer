@@ -92,7 +92,7 @@ class Client {
 
     return new Promise((resolve) =>
       r1.question(
-        `Accept ${fileName} from ${senderName} at ${senderPort}?`,
+        `Accept ${fileName} from ${senderName} at ${senderPort}? Reply with OK or NO: `,
         (ans) => {
           r1.close();
           resolve(ans);

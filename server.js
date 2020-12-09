@@ -17,7 +17,7 @@ class Server {
           const [port, name] = msg.split("New client: ")[1].split(", ");
 
           this.clients[name] = Number(port);
-          this.sendClients(port);
+          this.sendClients();
         }
       });
     });
@@ -27,13 +27,16 @@ class Server {
     });
   }
 
-  sendClients(toPort) {
-    const clientSocket = net.connect(toPort);
-    clientSocket.write(
-      `List of clients: ${Object.entries(this.clients).map(
-        ([name, port]) => `${name}: ${port}`
-      )}`
-    );
+  // Broadcasts new clients to all clients
+  sendClients() {
+    Object.entries(this.clients).forEach(([clientName, clientPort]) => {
+      const clientSocket = net.connect(clientPort);
+      clientSocket.write(
+        `List of clients: ${Object.entries(this.clients).map(
+          ([name, port]) => `${name}: ${port}`
+        )}`
+      );
+    });
   }
 }
 
