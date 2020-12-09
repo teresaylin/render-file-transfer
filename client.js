@@ -1,6 +1,7 @@
 const net = require("net");
 const fs = require("fs");
 const readline = require("readline");
+const { networkInterfaces } = require("os");
 
 /**
  * Client represents both senders and receivers.
@@ -15,10 +16,12 @@ class Client {
   transferSocket;
   transferFile;
   newFile;
+  ip;
 
   constructor(port, name) {
     this.port = port;
     this.name = name;
+    this.getIP();
 
     this.server = net.createServer((socket) => {
       socket.on("data", async (chunk) => {
@@ -31,8 +34,9 @@ class Client {
             .split("List of clients: ")[1]
             .split(",")
             .map((clientInfo) => {
-              const [name, port] = clientInfo.split(": ");
-              allClients[name] = port;
+              const [name, portAndIp] = clientInfo.split(": ");
+              const [port, ip] = portAndIp.split(":");
+              allClients[name] = [port, ip];
             });
           this.clients = allClients;
         } else if (msg.includes("Transferring file: ")) {
@@ -40,15 +44,17 @@ class Client {
             .split("Transferring file: ")[1]
             .split(" from ");
 
-          const [senderName, senderPort] = sender.split(" at ");
+          const [senderName, senderIpAndPort] = sender.split(" at ");
+          const [senderIp, senderPort] = senderIpAndPort.split(":");
           const decision = await this.acceptOrRejectTransfer(
             fileName,
             senderName,
+            senderIp,
             senderPort
           );
 
           // accept or reject file transfer
-          const replySocket = net.connect(senderPort);
+          const replySocket = net.connect(senderPort, senderIp);
           replySocket.on("ready", () => {
             replySocket.write(decision);
           });
@@ -81,17 +87,28 @@ class Client {
     const socket = net.connect(8000);
     socket.on("ready", () => {
       console.log("Socket to home server ready");
-      socket.write(`New client: ${port}, ${name}`);
+      socket.write(`New client: ${this.port}, ${this.name}, ${this.ip}`);
     });
+  }
+
+  getIP() {
+    const nets = networkInterfaces();
+    const { en0 } = nets;
+    let ip;
+    en0.forEach((net) => {
+      if (net.family === "IPv4" && !net.internal) ip = net.address;
+    });
+    this.ip = ip;
   }
 
   /**
    * Prompts user to accept or reject the incoming file.
    * @param {*} fileName Name of the file being transferred
    * @param {*} senderName Name of the sender
+   * @param {*} senderIp IP address of the sender
    * @param {*} senderPort Port of the sender
    */
-  async acceptOrRejectTransfer(fileName, senderName, senderPort) {
+  async acceptOrRejectTransfer(fileName, senderName, senderIp, senderPort) {
     const r1 = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -99,7 +116,7 @@ class Client {
 
     return new Promise((resolve) =>
       r1.question(
-        `Accept ${fileName} from ${senderName} at ${senderPort}? Reply with OK or NO: `,
+        `Accept ${fileName} from ${senderName} at ${senderIp}:${senderPort}? Reply with OK or NO: `,
         (ans) => {
           r1.close();
           resolve(ans);
@@ -116,10 +133,11 @@ class Client {
   initiateTransfer(receiver, fileName) {
     if (!Object.keys(this.clients).includes(receiver)) return;
 
-    const socket = net.connect(this.clients[receiver]);
+    const [port, ip] = this.clients[receiver];
+    const socket = net.connect(port, ip);
     socket.on("ready", () => {
       socket.write(
-        `Transferring file: ${fileName} from ${this.name} at ${this.port}`
+        `Transferring file: ${fileName} from ${this.name} at ${this.ip}:${this.port}`
       );
     });
 

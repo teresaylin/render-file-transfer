@@ -14,9 +14,9 @@ class Server {
         const msg = d.toString();
 
         if (msg.includes("New client: ")) {
-          const [port, name] = msg.split("New client: ")[1].split(", ");
+          const [port, name, ip] = msg.split("New client: ")[1].split(", ");
 
-          this.clients[name] = Number(port);
+          this.clients[name] = [Number(port), ip];
           this.sendClients();
         }
       });
@@ -29,13 +29,12 @@ class Server {
 
   // Broadcasts new clients to all clients
   sendClients() {
-    Object.entries(this.clients).forEach(([clientName, clientPort]) => {
-      const clientSocket = net.connect(clientPort);
-      clientSocket.write(
-        `List of clients: ${Object.entries(this.clients).map(
-          ([name, port]) => `${name}: ${port}`
-        )}`
-      );
+    const allClients = Object.entries(this.clients).map(
+      ([name, portAndIp]) => `${name}: ${portAndIp[0]}:${portAndIp[1]}`
+    );
+    Object.values(this.clients).forEach(([port]) => {
+      const clientSocket = net.connect(port);
+      clientSocket.write(`List of clients: ${allClients}`);
     });
   }
 }
